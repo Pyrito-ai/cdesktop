@@ -238,7 +238,8 @@
   },
   "turnNavigation": {
     "title": "你的訊息",
-    "count_other": "{{count}} 輪"
+    "count_other": "{{count}} 輪",
+    "count_one": "{{count}} 輪"
   },
   "commandBar": {
     "noResults": "找不到結果。",
@@ -598,10 +599,7 @@
       "prFilterLabel": "PR",
       "prFilterAll": "All",
       "prFilterHasPr": "Has PR",
-      "prFilterNoPr": "No PR",
-      "noProject": "No project",
-      "sortButtonTitle": "Sort 工作階段",
-      "filterButtonTitle": "Filter 工作階段"
+      "prFilterNoPr": "No PR"
     },
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -931,5 +929,14 @@
     "sidebar": {
       "nav": "定時任務"
     }
+  },
+  "workbench": {
+    "title": "工作台",
+    "sessions": "工作階段",
+    "toggleSessions": "切換工作階段顯示",
+    "searchCommands": "搜尋命令",
+    "workerSettings": "代理程式設定",
+    "workspaceTools": "工作區工具",
+    "product": "cdesktop"
   }
 }

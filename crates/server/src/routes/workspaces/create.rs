@@ -364,8 +364,7 @@ pub async fn create_and_start_workspace(
             &workspace,
             executor_config.clone(),
             workspace_prompt,
-            injection.env,
-            injection.codex,
+            injection,
             selected_provider_id_str,
             selected_model_id_str,
         )

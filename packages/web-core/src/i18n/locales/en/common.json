@@ -668,10 +668,7 @@
       "prFilterLabel": "PR",
       "prFilterAll": "All",
       "prFilterHasPr": "Has PR",
-      "prFilterNoPr": "No PR",
-      "noProject": "No project",
-      "sortButtonTitle": "Sort sessions",
-      "filterButtonTitle": "Filter sessions"
+      "prFilterNoPr": "No PR"
     },
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -932,5 +929,14 @@
     "sidebar": {
       "nav": "Routines"
     }
+  },
+  "workbench": {
+    "title": "Workbench",
+    "sessions": "Sessions",
+    "toggleSessions": "Toggle sessions",
+    "searchCommands": "Search commands",
+    "workerSettings": "Worker settings",
+    "workspaceTools": "Workspace tools",
+    "product": "cdesktop"
   }
 }

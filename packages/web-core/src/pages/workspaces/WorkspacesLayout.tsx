@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceContext } from '@/shared/hooks/useWorkspaceContext';
 import { usePageTitle } from '@/shared/hooks/usePageTitle';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 import {
   useMobileActiveTab,
   useWorkspacePanelState,
@@ -28,11 +29,11 @@ import { scrollFirstCellToBottom } from './cells/firstCellScroll';
 import { WorkspacesGuideDialog } from '@/shared/dialogs/shared/WorkspacesGuideDialog';
 import { useUserSystem } from '@/shared/hooks/useUserSystem';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
-import { RoutinesFirstCellSlot } from '@/shared/components/routines/RoutinesFirstCellSlot';
 
 const WORKSPACES_GUIDE_ID = 'workspaces-guide';
 
 export function WorkspacesLayout() {
+  const { isEmbedded, isSessionsOpen } = useWorkbenchEmbed();
   const {
     workspaceId,
     workspace: selectedWorkspace,
@@ -150,7 +151,7 @@ export function WorkspacesLayout() {
               )}
             >
               {isRoutinesMode ? (
-                <RoutinesFirstCellSlot />
+                <Outlet />
               ) : isCreateMode ? (
                 <CreateChatBoxContainer
                   onWorkspaceCreated={handleWorkspaceCreated}
@@ -257,6 +258,24 @@ export function WorkspacesLayout() {
     isCreateMode || isRoutinesMode ? <Outlet /> : null;
 
   const mainContent = <SessionGrid firstCellSlot={firstCellSlot} />;
+
+  if (isEmbedded) {
+    return (
+      <div className="flex h-full min-h-0">
+        {isSessionsOpen && (
+          <aside
+            aria-label="Sessions"
+            className="h-full w-[280px] shrink-0 border-r border-border p-2"
+          >
+            <WorkspacesSidebarContainer
+              onScrollToBottom={handleScrollToBottom}
+            />
+          </aside>
+        )}
+        <div className="h-full min-w-0 flex-1">{mainContent}</div>
+      </div>
+    );
+  }
 
   return (
     <div

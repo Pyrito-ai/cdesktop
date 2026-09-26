@@ -1,0 +1,26 @@
+/* Modified for Tencent Workbench embedding, September 2026.
+   Tokens only apply to the embedded local-web surface. */
+html.workbench-embed {
+  --_bg-primary-default: 0 0% 100%;
+  --_bg-secondary-default: 220 20% 97%;
+  --_bg-panel-default: 220 17% 94%;
+  --_border: 220 15% 88%;
+  --brand: 217 100% 43%;
+  --brand-hover: 217 90% 51%;
+  --brand-secondary: 217 100% 36%;
+  --text-high: 220 20% 18%;
+  --text-normal: 220 15% 27%;
+  --text-low: 220 9% 45%;
+  color-scheme: light;
+}
+
+.workbench-embed-surface {
+  font-family:
+    Roboto, 'San Francisco', 'Helvetica Neue', Helvetica, Arial, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+.workbench-embed-surface button:focus-visible {
+  outline: 2px solid hsl(var(--brand));
+  outline-offset: 2px;
+}

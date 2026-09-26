@@ -97,6 +97,7 @@
     "zustand": "^4.5.4"
   },
   "scripts": {
+    "test:workbench": "node --experimental-strip-types --test src/shared/hooks/workspaceSessionSelection.test.ts src/shared/lib/sessionPickerSelection.test.ts",
     "check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""

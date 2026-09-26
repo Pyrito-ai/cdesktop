@@ -22,6 +22,8 @@ import { ActionsProvider } from '@/shared/providers/ActionsProvider';
 import { useWorkspaceContext } from '@/shared/hooks/useWorkspaceContext';
 import { useUserSystem } from '@/shared/hooks/useUserSystem';
 import { SharedAppLayout } from '@/shared/components/ui-new/containers/SharedAppLayout';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
+import { WorkbenchEmbedLayout } from '@web/app/WorkbenchEmbedLayout';
 
 function KeyboardShortcutsHandler() {
   useKeyShowHelp(
@@ -106,15 +108,16 @@ function AppRouteProviders({ children }: { children: ReactNode }) {
 
 function AppLayoutRouteComponent() {
   const { hostId } = useParams({ strict: false });
+  const { isEmbedded } = useWorkbenchEmbed();
 
   return (
     <AppRouteProviders key={hostId ?? 'local'}>
-      <ReleaseNotesHandler />
+      {!isEmbedded && <ReleaseNotesHandler />}
       <SequenceTrackerProvider>
         <SequenceIndicator />
         <KeyboardShortcutsHandler />
         <TerminalProvider>
-          <SharedAppLayout />
+          {isEmbedded ? <WorkbenchEmbedLayout /> : <SharedAppLayout />}
         </TerminalProvider>
       </SequenceTrackerProvider>
     </AppRouteProviders>

@@ -3,16 +3,19 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useJsonPatchWsStream } from '@/shared/hooks/useJsonPatchWsStream';
 import { useHostId } from '@/shared/providers/HostIdProvider';
 import { workspaceSessionKeys } from '@/shared/hooks/workspaceSessionKeys';
+import {
+  resolveWorkspaceSessionSelection,
+  type SessionSelection,
+} from '@/shared/hooks/workspaceSessionSelection';
 import type { Session } from 'shared/types';
+
+export type { SessionSelection } from '@/shared/hooks/workspaceSessionSelection';
 
 interface UseWorkspaceSessionsOptions {
   enabled?: boolean;
+  /** Optional URL target, checked against this workspace's live snapshot. */
+  requestedSessionId?: string;
 }
-
-/** Discriminated union for session selection state */
-export type SessionSelection =
-  | { mode: 'existing'; sessionId: string }
-  | { mode: 'new' };
 
 interface UseWorkspaceSessionsResult {
   sessions: Session[];
@@ -49,7 +52,7 @@ export function useWorkspaceSessions(
 ): UseWorkspaceSessionsResult {
   const hostId = useHostId();
   const queryClient = useQueryClient();
-  const { enabled = true } = options;
+  const { enabled = true, requestedSessionId } = options;
   const [selection, setSelection] = useState<SessionSelection | undefined>(
     undefined
   );
@@ -102,33 +105,34 @@ export function useWorkspaceSessions(
     const workspaceChanged = prevWorkspaceIdRef.current !== workspaceId;
     prevWorkspaceIdRef.current = workspaceId;
 
-    setSelection((prev) => {
-      // Empty list: drop selection once initialised so we don't strand a
-      // stale id from a different workspace.
-      if (sessions.length === 0) {
-        return isInitialized ? undefined : prev;
-      }
+    setSelection((previous) =>
+      resolveWorkspaceSessionSelection({
+        previous,
+        sessions,
+        workspaceChanged,
+        isInitialized,
+        requestedSessionId,
+      })
+    );
+  }, [workspaceId, sessions, isInitialized, requestedSessionId]);
 
-      // New-session draft stays sticky inside the same workspace.
-      if (prev?.mode === 'new' && !workspaceChanged) return prev;
-
-      // Existing selection survives if (a) the user is still inside the
-      // same workspace and (b) that session is still alive.
-      if (
-        prev?.mode === 'existing' &&
-        !workspaceChanged &&
-        sessions.some((s) => s.id === prev.sessionId)
-      ) {
-        return prev;
-      }
-
-      return { mode: 'existing', sessionId: sessions[0].id };
-    });
-  }, [workspaceId, sessions, isInitialized]);
-
-  const isNewSessionMode = selection?.mode === 'new' || sessions.length === 0;
+  // Resolve a deep link during render, before effects run, so the first
+  // loaded frame and process subscription use the requested session.
+  const effectiveSelection = requestedSessionId
+    ? resolveWorkspaceSessionSelection({
+        previous: selection,
+        sessions,
+        workspaceChanged: false,
+        isInitialized,
+        requestedSessionId,
+      })
+    : selection;
+  const isNewSessionMode =
+    effectiveSelection?.mode === 'new' || sessions.length === 0;
   const selectedSessionId =
-    selection?.mode === 'existing' ? selection.sessionId : undefined;
+    effectiveSelection?.mode === 'existing'
+      ? effectiveSelection.sessionId
+      : undefined;
 
   const selectedSession = useMemo(
     () => sessions.find((s) => s.id === selectedSessionId),

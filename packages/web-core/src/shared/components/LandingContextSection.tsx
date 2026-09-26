@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { CaretRightIcon } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 import {
   useWorkspaces,
   type SidebarWorkspace,
@@ -48,6 +49,7 @@ function getStatusTag(
 }
 
 export function LandingContextSection() {
+  const { isEmbedded } = useWorkbenchEmbed();
   const { t } = useTranslation('common');
   const appNavigation = useAppNavigation();
   const { workspaces } = useWorkspaces();
@@ -78,16 +80,24 @@ export function LandingContextSection() {
 
   return (
     <div className="flex flex-col gap-base">
-      <h1 className="flex items-center gap-double text-3xl font-medium tracking-tight text-high mb-12">
-        <span className="inline-flex h-[1.5em] w-[1.5em] items-center justify-center rounded-xl bg-neutral-900">
-          <img
-            src="/logo-white.svg"
-            alt=""
-            aria-hidden
-            className="h-[0.8em] w-auto"
-          />
-        </span>
-        {t('createMode.landing.welcomeBack')}
+      <h1
+        className={
+          isEmbedded
+            ? 'text-xl font-medium text-high mb-base'
+            : 'flex items-center gap-double text-3xl font-medium tracking-tight text-high mb-12'
+        }
+      >
+        {!isEmbedded && (
+          <span className="inline-flex h-[1.5em] w-[1.5em] items-center justify-center rounded-xl bg-neutral-900">
+            <img
+              src="/logo-white.svg"
+              alt=""
+              aria-hidden
+              className="h-[0.8em] w-auto"
+            />
+          </span>
+        )}
+        {isEmbedded ? 'Start a session' : t('createMode.landing.welcomeBack')}
       </h1>
       {hasRecent ? (
         <>

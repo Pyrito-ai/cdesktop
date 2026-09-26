@@ -599,10 +599,7 @@
       "prFilterLabel": "PR",
       "prFilterAll": "All",
       "prFilterHasPr": "Has PR",
-      "prFilterNoPr": "No PR",
-      "noProject": "No project",
-      "sortButtonTitle": "Sort sesiones",
-      "filterButtonTitle": "Filter sesiones"
+      "prFilterNoPr": "No PR"
     },
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -932,5 +929,14 @@
     "sidebar": {
       "nav": "Rutinas"
     }
+  },
+  "workbench": {
+    "title": "Espacio de trabajo",
+    "sessions": "Sesiones",
+    "toggleSessions": "Mostrar u ocultar sesiones",
+    "searchCommands": "Buscar comandos",
+    "workerSettings": "Configuración del agente",
+    "workspaceTools": "Herramientas del espacio de trabajo",
+    "product": "cdesktop"
   }
 }

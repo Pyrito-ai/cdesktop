@@ -5,14 +5,17 @@ import { ThemeProviderContext } from '@/shared/hooks/useTheme';
 type ThemeProviderProps = {
   children: React.ReactNode;
   initialTheme?: ThemeMode;
+  forcedTheme?: ThemeMode;
 };
 
 export function ThemeProvider({
   children,
   initialTheme = ThemeMode.DARK,
+  forcedTheme,
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeMode>(initialTheme);
+  const effectiveTheme = forcedTheme ?? theme;
 
   // Update theme when initialTheme changes
   useEffect(() => {
@@ -24,7 +27,7 @@ export function ThemeProvider({
 
     root.classList.remove('light', 'dark');
 
-    if (theme === ThemeMode.SYSTEM) {
+    if (effectiveTheme === ThemeMode.SYSTEM) {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
         .matches
         ? 'dark'
@@ -34,15 +37,15 @@ export function ThemeProvider({
       return;
     }
 
-    root.classList.add(theme.toLowerCase());
-  }, [theme]);
+    root.classList.add(effectiveTheme.toLowerCase());
+  }, [effectiveTheme]);
 
   const setTheme = (newTheme: ThemeMode) => {
     setThemeState(newTheme);
   };
 
   const value = {
-    theme,
+    theme: effectiveTheme,
     setTheme,
   };
 

@@ -319,42 +319,17 @@ impl Provider {
     fn validate_enabled_agent_payloads(
         kind: &AiProviderKind,
         per_agent_enabled: &HashMap<String, bool>,
-        claude: &ClaudePayload,
-        codex: &CodexPayload,
-        opencode: &OpencodePayload,
-        deepseek_tui: &DeepseekTuiPayload,
-        gemini: &GeminiPayload,
-        hermes: &HermesPayload,
+        agent_base_urls: &[(&str, Option<&str>)],
     ) -> Result<(), ProviderError> {
         if matches!(kind, AiProviderKind::Default) {
             return Ok(());
         }
-        let is_on = |k: &str| per_agent_enabled.get(k).copied().unwrap_or(false);
-        let has = |s: &Option<String>| s.as_deref().map_or(false, |v| !v.is_empty());
-        let missing = |agent: &str, ok: bool| {
-            if ok {
-                Ok(())
-            } else {
-                Err(ProviderError::EnabledAgentMissingBaseUrl(agent.to_string()))
+        for &(agent, base_url) in agent_base_urls {
+            if per_agent_enabled.get(agent).copied().unwrap_or(false)
+                && base_url.is_none_or(|url| url.is_empty())
+            {
+                return Err(ProviderError::EnabledAgentMissingBaseUrl(agent.to_string()));
             }
-        };
-        if is_on("CLAUDE_CODE") {
-            missing("CLAUDE_CODE", has(&claude.base_url))?;
-        }
-        if is_on("CODEX") {
-            missing("CODEX", has(&codex.base_url))?;
-        }
-        if is_on("OPENCODE") {
-            missing("OPENCODE", has(&opencode.base_url))?;
-        }
-        if is_on("DEEPSEEK_TUI") {
-            missing("DEEPSEEK_TUI", has(&deepseek_tui.base_url))?;
-        }
-        if is_on("GEMINI") {
-            missing("GEMINI", has(&gemini.base_url))?;
-        }
-        if is_on("HERMES") {
-            missing("HERMES", has(&hermes.base_url))?;
         }
         Ok(())
     }
@@ -368,12 +343,14 @@ impl Provider {
         Self::validate_enabled_agent_payloads(
             &data.kind,
             &data.per_agent_enabled,
-            &data.claude,
-            &data.codex,
-            &data.opencode,
-            &data.deepseek_tui,
-            &data.gemini,
-            &data.hermes,
+            &[
+                ("CLAUDE_CODE", data.claude.base_url.as_deref()),
+                ("CODEX", data.codex.base_url.as_deref()),
+                ("OPENCODE", data.opencode.base_url.as_deref()),
+                ("DEEPSEEK_TUI", data.deepseek_tui.base_url.as_deref()),
+                ("GEMINI", data.gemini.base_url.as_deref()),
+                ("HERMES", data.hermes.base_url.as_deref()),
+            ],
         )?;
 
         let id_str = id.to_string();
@@ -435,12 +412,14 @@ impl Provider {
         Self::validate_enabled_agent_payloads(
             &existing.kind,
             &data.per_agent_enabled,
-            &data.claude,
-            &data.codex,
-            &data.opencode,
-            &data.deepseek_tui,
-            &data.gemini,
-            &data.hermes,
+            &[
+                ("CLAUDE_CODE", data.claude.base_url.as_deref()),
+                ("CODEX", data.codex.base_url.as_deref()),
+                ("OPENCODE", data.opencode.base_url.as_deref()),
+                ("DEEPSEEK_TUI", data.deepseek_tui.base_url.as_deref()),
+                ("GEMINI", data.gemini.base_url.as_deref()),
+                ("HERMES", data.hermes.base_url.as_deref()),
+            ],
         )?;
 
         let id_str = id.to_string();
@@ -644,9 +623,7 @@ impl Provider {
     /// `record.codex.env` is overlaid first so the `CDT_API_KEY` we set
     /// last cannot be silently clobbered by a vendor-quirk env entry.
     /// Returns `Ok(None)` for the Default provider (ambient auth path).
-    pub fn build_codex_injection(
-        &self,
-    ) -> Result<Option<(HashMap<String, String>, CodexProviderInjection)>, ProviderError> {
+    pub fn build_codex_injection(&self) -> Result<Option<CodexSpawnInjection>, ProviderError> {
         if self.kind == AiProviderKind::Default {
             return Ok(None);
         }
@@ -1024,6 +1001,9 @@ impl Provider {
     }
 }
 
+/// Codex process env vars and structured provider config overrides.
+pub type CodexSpawnInjection = (HashMap<String, String>, CodexProviderInjection);
+
 /// Per-agent spawn injection bundle — env vars + agent-specific structured
 /// payloads. One slot per agent that has a non-trivial spawn-time applier.
 /// Phases D/E/F add more slots; route handlers remain agent-agnostic.
@@ -1041,6 +1021,80 @@ pub struct AgentInjection {
     // and DeepSeek TUI (Phase E) are env-only too — the DeepSeek TUI
     // runtime intentionally exposes no provider/credential CLI flags, so
     // it never needs a dedicated argv slot.
+}
+
+#[cfg(test)]
+mod enabled_agent_payload_tests {
+    use super::*;
+
+    #[test]
+    fn default_provider_allows_enabled_agents_without_base_urls() {
+        let enabled = HashMap::from([("CODEX".to_string(), true)]);
+
+        assert!(
+            Provider::validate_enabled_agent_payloads(
+                &AiProviderKind::Default,
+                &enabled,
+                &[("CODEX", None)],
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn only_enabled_agents_require_a_nonempty_base_url() {
+        let enabled = HashMap::from([
+            ("CLAUDE_CODE".to_string(), false),
+            ("CODEX".to_string(), true),
+        ]);
+
+        for kind in [AiProviderKind::Preset, AiProviderKind::Custom] {
+            for base_url in [None, Some("")] {
+                assert!(matches!(
+                    Provider::validate_enabled_agent_payloads(
+                        &kind,
+                        &enabled,
+                        &[
+                            ("CLAUDE_CODE", None),
+                            ("CODEX", base_url),
+                            ("OPENCODE", None),
+                        ],
+                    ),
+                    Err(ProviderError::EnabledAgentMissingBaseUrl(agent)) if agent == "CODEX"
+                ));
+            }
+
+            assert!(
+                Provider::validate_enabled_agent_payloads(
+                    &kind,
+                    &enabled,
+                    &[
+                        ("CLAUDE_CODE", None),
+                        ("CODEX", Some("https://example.com/v1")),
+                        ("OPENCODE", None),
+                    ],
+                )
+                .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn reports_first_missing_base_url_in_payload_order() {
+        let enabled = HashMap::from([
+            ("CODEX".to_string(), true),
+            ("CLAUDE_CODE".to_string(), true),
+        ]);
+
+        assert!(matches!(
+            Provider::validate_enabled_agent_payloads(
+                &AiProviderKind::Custom,
+                &enabled,
+                &[("CLAUDE_CODE", None), ("CODEX", None)],
+            ),
+            Err(ProviderError::EnabledAgentMissingBaseUrl(agent)) if agent == "CLAUDE_CODE"
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -1064,6 +1118,7 @@ mod codex_injection_tests {
             claude: ClaudePayload::default(),
             codex: CodexPayload {
                 base_url: base_url.map(|s| s.to_string()),
+                api_key: None,
                 env: codex_env,
             },
             opencode: OpencodePayload::default(),
@@ -1200,10 +1255,7 @@ mod opencode_injection_tests {
         kind: AiProviderKind,
         api_key: Option<&str>,
         preset_id: Option<&str>,
-        base_url: Option<&str>,
-        npm: Option<&str>,
-        opencode_env: HashMap<String, String>,
-        opencode_options: HashMap<String, JsonValue>,
+        opencode: OpencodePayload,
         enabled_models: Vec<EnabledModel>,
     ) -> Provider {
         Provider {
@@ -1216,13 +1268,7 @@ mod opencode_injection_tests {
             per_agent_enabled: HashMap::new(),
             claude: ClaudePayload::default(),
             codex: CodexPayload::default(),
-            opencode: OpencodePayload {
-                npm: npm.map(|s| s.to_string()),
-                base_url: base_url.map(|s| s.to_string()),
-                options: opencode_options,
-                api_key: None,
-                env: opencode_env,
-            },
+            opencode,
             deepseek_tui: DeepseekTuiPayload::default(),
             gemini: GeminiPayload::default(),
             hermes: HermesPayload::default(),
@@ -1245,10 +1291,10 @@ mod opencode_injection_tests {
             AiProviderKind::Default,
             Some("ignored"),
             None,
-            Some("ignored"),
-            None,
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("ignored".to_string()),
+                ..Default::default()
+            },
             vec![],
         );
         assert!(p.build_opencode_injection().unwrap().is_none());
@@ -1260,10 +1306,11 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             None,
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "anthropic/claude-opus-4.7".to_string(),
                 display_name: "Opus 4.7".to_string(),
@@ -1282,10 +1329,10 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("sk-test"),
             Some("openrouter"),
-            None,
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "anthropic/claude-opus-4.7".to_string(),
                 display_name: "Opus 4.7".to_string(),
@@ -1304,10 +1351,11 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("sk-test"),
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                ..Default::default()
+            },
             vec![],
         );
         assert!(matches!(
@@ -1328,10 +1376,12 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("sk-real"),
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            options,
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                options,
+                ..Default::default()
+            },
             vec![
                 EnabledModel {
                     id: "anthropic/claude-opus-4.7".to_string(),
@@ -1370,10 +1420,11 @@ mod opencode_injection_tests {
             AiProviderKind::Custom,
             Some("sk-test"),
             None,
-            Some("https://example.com/v1"),
-            Some("@ai-sdk/openai-compatible"),
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("https://example.com/v1".to_string()),
+                npm: Some("@ai-sdk/openai-compatible".to_string()),
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "gpt-4".to_string(),
                 display_name: "GPT-4".to_string(),
@@ -1393,10 +1444,11 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("top-level-key"),
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "anthropic/claude-opus-4.7".to_string(),
                 display_name: "Opus 4.7".to_string(),
@@ -1429,10 +1481,12 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("sk-test"),
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            opencode_env,
-            HashMap::new(),
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                env: opencode_env,
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "m".to_string(),
                 display_name: "m".to_string(),
@@ -1469,10 +1523,12 @@ mod opencode_injection_tests {
             AiProviderKind::Preset,
             Some("sk-real"),
             Some("openrouter"),
-            Some("https://openrouter.ai/api/v1"),
-            Some("@ai-sdk/anthropic"),
-            HashMap::new(),
-            bad_options,
+            OpencodePayload {
+                base_url: Some("https://openrouter.ai/api/v1".to_string()),
+                npm: Some("@ai-sdk/anthropic".to_string()),
+                options: bad_options,
+                ..Default::default()
+            },
             vec![EnabledModel {
                 id: "m".to_string(),
                 display_name: "m".to_string(),

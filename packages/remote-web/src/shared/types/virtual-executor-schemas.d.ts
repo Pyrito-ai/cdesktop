@@ -1,9 +1,1 @@
-declare module "virtual:executor-schemas" {
-  import type { BaseCodingAgent } from "@/shared/types";
-
-  type RJSFSchema = Record<string, unknown>;
-
-  const schemas: Record<BaseCodingAgent, RJSFSchema>;
-  export { schemas };
-  export default schemas;
-}
+/// <reference path="../../../../web-core/src/shared/types/virtual-executor-schemas.d.ts" />

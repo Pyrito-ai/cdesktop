@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MagnifyingGlassIcon, GearIcon } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
@@ -29,6 +29,9 @@ interface ProviderModelPickerProps {
   selectedModelId: string | null;
   selectedReasoningId: string | null;
   preferredEffortId: string | null;
+  /** Existing follow-ups may inherit the recorded provider without overriding it. */
+  inheritProvider?: boolean;
+  onInheritedEffortChange?: (reasoningId: string | null) => void;
   /**
    * Currently active agent (composer's executor dropdown). Filters non-Default
    * providers by `record.perAgentEnabled[activeAgent] === true`. Default is
@@ -49,6 +52,8 @@ export function ProviderModelPicker({
   selectedModelId,
   selectedReasoningId,
   preferredEffortId,
+  inheritProvider = false,
+  onInheritedEffortChange,
   activeAgent,
   onManageProviders,
   onSelectionChange,
@@ -72,21 +77,24 @@ export function ProviderModelPicker({
     }));
   }, [agentModelConfig]);
 
-  const modelsForProvider = (p: Provider): EnabledModel[] => {
-    if (p.kind === 'Default' && activeAgent && agentModelConfig) {
-      // Prepend the "agent default" virtual entry so users who configure
-      // their own agent can opt out of cdesktop forcing a `--model` flag.
-      // Agents that report no models (e.g. Hermes, which has no
-      // scriptable listing surface) collapse to just this sentinel.
-      const virtualDefault: EnabledModel = {
-        id: AGENT_DEFAULT_MODEL_ID,
-        displayName: t('settings.providers.picker.defaultModel'),
-        ownedBy: null,
-      };
-      return [virtualDefault, ...agentDefaultModels];
-    }
-    return p.enabledModels ?? [];
-  };
+  const modelsForProvider = useCallback(
+    (p: Provider): EnabledModel[] => {
+      if (p.kind === 'Default' && activeAgent && agentModelConfig) {
+        // Prepend the "agent default" virtual entry so users who configure
+        // their own agent can opt out of cdesktop forcing a `--model` flag.
+        // Agents that report no models (e.g. Hermes, which has no
+        // scriptable listing surface) collapse to just this sentinel.
+        const virtualDefault: EnabledModel = {
+          id: AGENT_DEFAULT_MODEL_ID,
+          displayName: t('settings.providers.picker.defaultModel'),
+          ownedBy: null,
+        };
+        return [virtualDefault, ...agentDefaultModels];
+      }
+      return p.enabledModels ?? [];
+    },
+    [activeAgent, agentModelConfig, agentDefaultModels, t]
+  );
 
   const { data: recents = [] } = useQuery({
     queryKey: ['providers', 'recents'],
@@ -133,7 +141,7 @@ export function ProviderModelPicker({
       }
     }
     return items;
-  }, [providers, search, activeAgent, agentDefaultModels]);
+  }, [providers, search, activeAgent, modelsForProvider]);
 
   const grouped = useMemo(() => {
     const map = new Map<
@@ -167,7 +175,7 @@ export function ProviderModelPicker({
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [recents, providers, activeAgent, agentDefaultModels]);
+  }, [recents, providers, modelsForProvider]);
 
   const selectedProvider = providers.find((p) => p.id === selectedProviderId);
   // Hermes's ACP adapter has no surface for reasoning effort: env vars
@@ -191,7 +199,11 @@ export function ProviderModelPicker({
   const selectedModel = selectedProvider
     ? modelsForProvider(selectedProvider).find((m) => m.id === selectedModelId)
     : undefined;
-  const displayName = selectedModel?.displayName ?? selectedModelId ?? '';
+  const displayName =
+    selectedModel?.displayName ??
+    (selectedModelId === AGENT_DEFAULT_MODEL_ID
+      ? t('settings.providers.picker.defaultModel')
+      : (selectedModelId ?? ''));
   const contextMatch = displayName.match(/^(.*) \((\d+M) context\)$/);
   const rawName = contextMatch ? contextMatch[1] : displayName;
   const namePart = rawName.includes('/')
@@ -206,7 +218,7 @@ export function ProviderModelPicker({
   // pick. Use !== null so the trigger renders "Agent default" rather than
   // the "Model ▾" placeholder when the user opts into ambient agent config.
   const triggerLabel =
-    selectedModelId !== null && selectedProvider ? (
+    selectedModelId !== null && (selectedProvider || inheritProvider) ? (
       <>
         {namePart}
         {contextSuffix && <span className="text-low"> {contextSuffix}</span>}
@@ -224,8 +236,13 @@ export function ProviderModelPicker({
 
   const selectEffort = (effortId: string) => {
     onPreferredEffortChange(effortId);
-    if (!selectedProviderId || !selectedModelId) return;
+    if ((!selectedProviderId && !inheritProvider) || selectedModelId === null)
+      return;
     const reasoning = clampEffortToModel(effortId, currentReasoningOptions);
+    if (!selectedProviderId) {
+      onInheritedEffortChange?.(reasoning);
+      return;
+    }
     onSelectionChange(selectedProviderId, selectedModelId, reasoning);
   };
 

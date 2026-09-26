@@ -105,7 +105,7 @@ pub struct LatestProcessInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ExecutorActionField {
-    ExecutorAction(ExecutorAction),
+    ExecutorAction(Box<ExecutorAction>),
     Other(Value),
 }
 
@@ -735,5 +735,35 @@ impl ExecutionProcess {
         .await?;
 
         Ok(rows.into_iter().collect())
+    }
+}
+
+#[cfg(test)]
+mod executor_action_field_tests {
+    use super::ExecutorActionField;
+
+    #[test]
+    fn stored_action_json_retains_its_untagged_shape() {
+        let stored = serde_json::json!({
+            "typ": {
+                "type": "ScriptRequest",
+                "script": "echo ready",
+                "language": "Bash",
+                "context": "SetupScript",
+                "working_dir": null
+            },
+            "next_action": null
+        });
+        let decoded: ExecutorActionField = serde_json::from_value(stored.clone()).unwrap();
+        assert!(matches!(decoded, ExecutorActionField::ExecutorAction(_)));
+        assert_eq!(serde_json::to_value(decoded).unwrap(), stored);
+    }
+
+    #[test]
+    fn unknown_stored_actions_remain_readable() {
+        let stored = serde_json::json!({"typ": {"type": "FutureRequest"}});
+        let decoded: ExecutorActionField = serde_json::from_value(stored.clone()).unwrap();
+        assert!(matches!(decoded, ExecutorActionField::Other(_)));
+        assert_eq!(serde_json::to_value(decoded).unwrap(), stored);
     }
 }

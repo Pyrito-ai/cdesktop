@@ -58,7 +58,10 @@ async fn main() -> Result<(), VibeKanbanError> {
     // Install the bundled `cdesktop` skill into `~/.agent/skills/cdesktop/`
     // and symlink it into every supported agent-config dir. Errors are
     // logged inside the helper; never fatal.
-    skill_install::install();
+    // Tencent Workbench fork: trial must not rewrite shared agent skills.
+    if std::env::var("CDT_SKIP_SKILL_INSTALL").as_deref() != Ok("1") {
+        skill_install::install();
+    }
 
     // Copy old database to new location for safe downgrades
     let old_db = asset_dir().join("db.sqlite");
@@ -151,7 +154,7 @@ async fn main() -> Result<(), VibeKanbanError> {
     let app_router = routes::router(deployment.clone());
 
     // Production only: open browser
-    if !cfg!(debug_assertions) {
+    if !cfg!(debug_assertions) && std::env::var("CDT_NO_OPEN").as_deref() != Ok("1") {
         tracing::info!("Opening browser...");
         let browser_port = actual_main_port;
         tokio::spawn(async move {

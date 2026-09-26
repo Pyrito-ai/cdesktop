@@ -14,6 +14,7 @@ import { workspaceSessionKeys } from '@/shared/hooks/workspaceSessionKeys';
 import { useWorkspaceExecution } from '@/shared/hooks/useWorkspaceExecution';
 import { useWorkspaceRepo } from '@/shared/hooks/useWorkspaceRepo';
 import { useUserSystem } from '@/shared/hooks/useUserSystem';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 import WYSIWYGEditor from '@/shared/components/WYSIWYGEditor';
 import { useApprovalFeedbackOptional } from '../model/contexts/ApprovalFeedbackContext';
 import { useMessageEditContext } from '../model/contexts/MessageEditContext';
@@ -25,6 +26,8 @@ import { useActions } from '@/shared/hooks/useActions';
 import { useTodos } from '../model/hooks/useTodos';
 import { getLatestConfigFromProcesses } from '@/shared/lib/executor';
 import { useExecutorConfig } from '@/shared/hooks/useExecutorConfig';
+import { usePresetOptions } from '@/shared/hooks/usePresetOptions';
+import { useSessionPickerSelection } from '@/shared/hooks/useSessionPickerSelection';
 import { useModelSelectorConfig } from '@/shared/hooks/useExecutorDiscovery';
 import {
   SHOW_INNER_SESSION_SWITCHER,
@@ -152,6 +155,7 @@ type SessionChatBoxContainerProps =
   | PlaceholderProps;
 
 export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
+  const { isEmbedded } = useWorkbenchEmbed();
   const {
     mode,
     sessions,
@@ -238,8 +242,13 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
   }, [entries]);
 
   // Execution state
-  const { isAttemptRunning, stopExecution, isStopping, processes } =
-    useWorkspaceExecution(workspaceId);
+  const {
+    isAttemptRunning,
+    stopExecution,
+    isStopping,
+    processes,
+    isLoading: isProcessesLoading,
+  } = useWorkspaceExecution(workspaceId);
 
   // Approvals state
   const { getPendingForProcess } = useApprovals();
@@ -496,7 +505,18 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     refreshQueueStatus,
   } = useSessionQueueInteraction({ sessionId });
 
-  // Send actions
+  // Restore the launched session's model separately from the generic composer
+  // preference. Preset defaults fill absent receipt fields without changing the
+  // explicit variant or permission policy resolved by useExecutorConfig.
+  const restoreSessionId = isEmbedded ? sessionId : undefined;
+  const { data: sessionPresetOptions } = usePresetOptions(
+    restoreSessionId ? (latestConfig?.executor ?? null) : null,
+    latestConfig?.variant ?? null
+  );
+  const isRestoringSessionModel =
+    !!restoreSessionId &&
+    (isProcessesLoading || sessionPresetOptions === undefined);
+  const workspacePicker = useWorkspacePickerSelection(workspaceId);
   const {
     selectedProviderId,
     selectedModelId,
@@ -504,7 +524,12 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     preferredEffortId,
     setSelection,
     setPreferredEffort,
-  } = useWorkspacePickerSelection(workspaceId);
+  } = useSessionPickerSelection({
+    sessionId: restoreSessionId,
+    latestConfig,
+    presetOptions: sessionPresetOptions,
+    fallback: workspacePicker,
+  });
 
   // Legacy / never-picked sessions: seed from last-used (or the active agent's
   // first canonical model) so the pill matches what will actually run on send.
@@ -521,6 +546,7 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     [agentModelConfig]
   );
   useEffect(() => {
+    if (restoreSessionId) return;
     if (selectedProviderId || selectedModelId) return;
     if (effectiveExecutor && agentDefaultModels.length === 0) return;
     const resolved = resolveDefaultSelection(providers, agentDefaultModels);
@@ -529,6 +555,7 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     setPreferredEffort(resolved.preferredEffortId);
   }, [
     providers,
+    restoreSessionId,
     selectedProviderId,
     selectedModelId,
     effectiveExecutor,
@@ -969,7 +996,7 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     isInFeedbackMode,
     isInEditMode,
     isStopping,
-    isQueueLoading,
+    isQueueLoading: isQueueLoading || isRestoringSessionModel,
     isSendingFollowUp: isSending,
     isQueued,
     isAttemptRunning,
@@ -1022,12 +1049,20 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     [config?.send_message_shortcut, sessionId]
   );
 
-  const modelSelectorNode = effectiveExecutor ? (
+  const modelSelectorNode = isRestoringSessionModel ? (
+    <span className="text-base text-low" role="status">
+      Loading session model…
+    </span>
+  ) : effectiveExecutor ? (
     <ProviderModelPicker
       selectedProviderId={selectedProviderId}
       selectedModelId={selectedModelId}
       selectedReasoningId={selectedReasoningId}
       preferredEffortId={preferredEffortId}
+      inheritProvider={!!restoreSessionId}
+      onInheritedEffortChange={(reasoningId) =>
+        setSelection(null, selectedModelId, reasoningId)
+      }
       activeAgent={effectiveExecutor}
       onManageProviders={() =>
         SettingsDialog.show({ initialSection: 'providers' })
@@ -1060,7 +1095,7 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
     return (
       <SessionChatBox<BaseCodingAgent>
         status="idle"
-        showSessionSwitcher={SHOW_INNER_SESSION_SWITCHER}
+        showSessionSwitcher={isEmbedded || SHOW_INNER_SESSION_SWITCHER}
         renderEditor={renderEditor}
         repoIds={repoIds}
         tokenUsageInfo={tokenUsageInfo}
@@ -1108,7 +1143,7 @@ export function SessionChatBoxContainer(props: SessionChatBoxContainerProps) {
   return (
     <SessionChatBox<BaseCodingAgent>
       status={status}
-      showSessionSwitcher={SHOW_INNER_SESSION_SWITCHER}
+      showSessionSwitcher={isEmbedded || SHOW_INNER_SESSION_SWITCHER}
       onViewCode={disableViewCode ? undefined : handleViewCode}
       onOpenWorkspace={
         showOpenWorkspaceButton && workspaceId ? handleOpenWorkspace : undefined
