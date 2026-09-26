@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 
 const BASE_TITLE = 'cdesktop';
 
@@ -12,11 +13,11 @@ const BASE_TITLE = 'cdesktop';
  * competing with page-level callers.
  */
 export function usePageTitle(...parts: (string | null | undefined)[]) {
+  const { isEmbedded } = useWorkbenchEmbed();
+  const baseTitle = isEmbedded ? 'Workbench' : BASE_TITLE;
   const filtered = parts.filter(Boolean) as string[];
   const title =
-    filtered.length > 0
-      ? `${filtered.join(' - ')} | ${BASE_TITLE}`
-      : BASE_TITLE;
+    filtered.length > 0 ? `${filtered.join(' - ')} | ${baseTitle}` : baseTitle;
 
   useEffect(() => {
     document.title = title;

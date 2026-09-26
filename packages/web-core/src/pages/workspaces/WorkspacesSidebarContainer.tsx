@@ -20,6 +20,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 import { ScratchType, type DraftWorkspaceData } from 'shared/types';
 import { splitMessageToTitleDescription } from '@/shared/lib/string';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 import {
   PERSIST_KEYS,
   usePersistedExpanded,
@@ -327,6 +328,7 @@ export function WorkspacesSidebarContainer({
   }, [rawActiveWorkspaces, optimisticPinnedOrder]);
 
   const isMobile = useIsMobile();
+  const { isEmbedded } = useWorkbenchEmbed();
   const { hosts: remoteCloudHosts } = useRemoteCloudHostsAppBarModel();
   const { hostId: routeHostId } = useParams({ strict: false });
   const routerNavigate = useNavigate();
@@ -939,18 +941,28 @@ export function WorkspacesSidebarContainer({
         openInGridWorkspaceIds={openInGridWorkspaceIds}
         topActions={
           <>
-            {topActions}
+            {!isEmbedded && topActions}
             <NavbarSidebarSearchSlot />
           </>
         }
         bottomActions={
           <>
-            <ControlPanelMenu
-              theme={theme}
-              onSetTheme={handleSetTheme}
-              onOpenSettings={handleOpenSettings}
-              onViewArchive={handleViewArchive}
-            />
+            {isEmbedded ? (
+              <button
+                type="button"
+                className="text-base text-low hover:text-high"
+                onClick={handleViewArchive}
+              >
+                Archived sessions
+              </button>
+            ) : (
+              <ControlPanelMenu
+                theme={theme}
+                onSetTheme={handleSetTheme}
+                onOpenSettings={handleOpenSettings}
+                onViewArchive={handleViewArchive}
+              />
+            )}
             {/*
               Hidden: command bar + Settings buttons (Settings now lives in
               the ControlPanelMenu; command palette is intentionally stripped

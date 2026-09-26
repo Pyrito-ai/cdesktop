@@ -4,7 +4,12 @@ use rust_embed::RustEmbed;
 const PROJECT_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
 pub fn asset_dir() -> std::path::PathBuf {
-    let path = if cfg!(debug_assertions) {
+    // Tencent Workbench fork: explicit data directory keeps comparison trials isolated.
+    let path = if let Some(directory) = std::env::var_os("CDT_DATA_DIR") {
+        let directory = std::path::PathBuf::from(directory);
+        assert!(directory.is_absolute(), "CDT_DATA_DIR must be absolute");
+        directory
+    } else if cfg!(debug_assertions) {
         std::path::PathBuf::from(PROJECT_ROOT).join("../../dev_assets")
     } else {
         prod_asset_dir_path()

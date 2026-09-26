@@ -6,7 +6,7 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaces } from '@/shared/hooks/useWorkspaces';
 import { workspaceSummaryKeys } from '@/shared/hooks/workspaceSummaryKeys';
@@ -21,6 +21,7 @@ import { useSessionGridStore } from '@/shared/stores/useSessionGridStore';
 import type { DiffStats } from 'shared/types';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
 import { useCurrentAppDestination } from '@/shared/hooks/useCurrentAppDestination';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 
 import { WorkspaceContext } from '@/shared/hooks/useWorkspaceContext';
 
@@ -77,11 +78,22 @@ function WorkspaceProviderInner({
   const appNavigation = useAppNavigation();
   const currentDestination = useCurrentAppDestination();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false });
+  const { isEmbedded } = useWorkbenchEmbed();
 
   // Create mode is a URL-level state; only the route-level provider can be
   // in create mode. Child providers (per-cell) always render a real workspace.
   const isCreateMode =
     !workspaceIdProp && currentDestination?.kind === 'workspaces-create';
+  const isUrlSessionEnabled =
+    isEmbedded && !!workspaceId && !workspaceIdProp && !isCreateMode;
+  const requestedSessionId =
+    isUrlSessionEnabled &&
+    'sessionId' in search &&
+    typeof search.sessionId === 'string'
+      ? search.sessionId
+      : undefined;
 
   const {
     workspaces: activeWorkspaces,
@@ -98,12 +110,51 @@ function WorkspaceProviderInner({
     sessions,
     selectedSession,
     selectedSessionId,
-    selectSession,
-    selectLatestSession,
+    selectSession: selectSessionState,
+    selectLatestSession: selectLatestSessionState,
     isLoading: isSessionsLoading,
     isNewSessionMode,
-    startNewSession,
-  } = useWorkspaceSessions(workspaceId, { enabled: !isCreateMode });
+    startNewSession: startNewSessionState,
+  } = useWorkspaceSessions(workspaceId, {
+    enabled: !isCreateMode,
+    requestedSessionId,
+  });
+
+  const updateSessionUrl = useCallback(
+    (sessionId: string | undefined) => {
+      if (!isUrlSessionEnabled) return;
+      void navigate({
+        to: '.',
+        search: (previous: Record<string, unknown>) => ({
+          ...previous,
+          sessionId,
+        }),
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [isUrlSessionEnabled, navigate]
+  );
+
+  const selectSession = useCallback(
+    (sessionId: string) => {
+      selectSessionState(sessionId);
+      updateSessionUrl(sessionId);
+    },
+    [selectSessionState, updateSessionUrl]
+  );
+  const selectLatestSession = useCallback(() => {
+    selectLatestSessionState();
+    updateSessionUrl(sessions[0]?.id);
+  }, [selectLatestSessionState, sessions, updateSessionUrl]);
+  const startNewSession = useCallback(() => {
+    startNewSessionState();
+    updateSessionUrl(undefined);
+  }, [startNewSessionState, updateSessionUrl]);
+  const hasUnavailableSessionTarget =
+    !!requestedSessionId &&
+    !isSessionsLoading &&
+    !sessions.some((session) => session.id === requestedSessionId);
 
   const { repos, isLoading: isReposLoading } = useWorkspaceRepo(workspaceId, {
     enabled: !isCreateMode,
@@ -307,6 +358,24 @@ function WorkspaceProviderInner({
 
   return (
     <WorkspaceContext.Provider value={coreValue}>
+      {hasUnavailableSessionTarget && (
+        <div
+          role="alert"
+          className="new-design fixed top-base left-base right-base z-50 flex items-center justify-between gap-base rounded border bg-panel px-base py-half text-base text-high shadow-sm"
+        >
+          <span>
+            The linked session is unavailable in this workspace.
+            {sessions.length > 0 && ' Showing the latest session.'}
+          </span>
+          <button
+            type="button"
+            className="shrink-0 underline"
+            onClick={() => updateSessionUrl(undefined)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {children}
     </WorkspaceContext.Provider>
   );

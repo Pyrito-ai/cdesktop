@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorkspaceContext } from '@/shared/hooks/useWorkspaceContext';
 import { usePageTitle } from '@/shared/hooks/usePageTitle';
 import { useIsMobile } from '@/shared/hooks/useIsMobile';
+import { useWorkbenchEmbed } from '@/shared/hooks/useWorkbenchEmbed';
 import {
   useMobileActiveTab,
   useWorkspacePanelState,
@@ -33,6 +34,7 @@ import { RoutinesFirstCellSlot } from '@/shared/components/routines/RoutinesFirs
 const WORKSPACES_GUIDE_ID = 'workspaces-guide';
 
 export function WorkspacesLayout() {
+  const { isEmbedded, isSessionsOpen } = useWorkbenchEmbed();
   const {
     workspaceId,
     workspace: selectedWorkspace,
@@ -257,6 +259,24 @@ export function WorkspacesLayout() {
     isCreateMode || isRoutinesMode ? <Outlet /> : null;
 
   const mainContent = <SessionGrid firstCellSlot={firstCellSlot} />;
+
+  if (isEmbedded) {
+    return (
+      <div className="flex h-full min-h-0">
+        {isSessionsOpen && (
+          <aside
+            aria-label="Sessions"
+            className="h-full w-[280px] shrink-0 border-r border-border p-2"
+          >
+            <WorkspacesSidebarContainer
+              onScrollToBottom={handleScrollToBottom}
+            />
+          </aside>
+        )}
+        <div className="h-full min-w-0 flex-1">{mainContent}</div>
+      </div>
+    );
+  }
 
   return (
     <div
