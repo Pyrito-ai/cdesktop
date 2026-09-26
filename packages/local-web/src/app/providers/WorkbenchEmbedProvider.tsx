@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { WorkbenchEmbedContext } from '@/shared/hooks/useWorkbenchEmbed';
 

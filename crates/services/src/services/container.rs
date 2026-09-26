@@ -17,6 +17,7 @@ use db::{
         execution_process_repo_state::{
             CreateExecutionProcessRepoState, ExecutionProcessRepoState,
         },
+        provider::AgentInjection,
         repo::Repo,
         routine_run::RoutineRun,
         session::{CreateSession, Session, SessionError},
@@ -1102,8 +1103,7 @@ pub trait ContainerService {
         workspace: &Workspace,
         executor_config: ExecutorConfig,
         prompt: String,
-        provider_env: Option<HashMap<String, String>>,
-        provider_codex: Option<executors::env::CodexProviderInjection>,
+        provider_injection: AgentInjection,
         selected_provider_id: Option<String>,
         selected_model_id: Option<String>,
     ) -> Result<ExecutionProcess, ContainerError> {
@@ -1154,10 +1154,10 @@ pub trait ContainerService {
                 }),
                 None,
             );
-            if let Some(env) = provider_env {
+            if let Some(env) = provider_injection.env {
                 a = a.with_provider_env(env);
             }
-            if let Some(codex) = provider_codex {
+            if let Some(codex) = provider_injection.codex {
                 a = a.with_provider_codex(codex);
             }
             a.with_provider_selection(selected_provider_id, selected_model_id)
@@ -1305,23 +1305,21 @@ pub trait ContainerService {
             if let (Some(model_id), Some(provider_id)) = (
                 executor_action.selected_model_id.as_deref(),
                 executor_action.selected_provider_id.as_deref(),
-            ) {
-                if !model_id.is_empty() && !provider_id.is_empty() {
-                    if let Err(e) = CodingAgentTurn::update_selected_model_provider(
-                        &self.db().pool,
-                        execution_process.id,
-                        model_id,
-                        provider_id,
-                    )
-                    .await
-                    {
-                        tracing::warn!(
-                            execution_process_id = %execution_process.id,
-                            error = %e,
-                            "failed to persist model/provider selection on turn"
-                        );
-                    }
-                }
+            ) && !model_id.is_empty()
+                && !provider_id.is_empty()
+                && let Err(e) = CodingAgentTurn::update_selected_model_provider(
+                    &self.db().pool,
+                    execution_process.id,
+                    model_id,
+                    provider_id,
+                )
+                .await
+            {
+                tracing::warn!(
+                    execution_process_id = %execution_process.id,
+                    error = %e,
+                    "failed to persist model/provider selection on turn"
+                );
             }
         }
 
