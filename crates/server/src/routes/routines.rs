@@ -32,14 +32,12 @@ pub struct RunNowResponse {
     pub skip_reason: Option<String>,
 }
 
-fn validate_executor_config(cfg: &ExecutorConfig) -> Result<(), ApiError> {
+fn validate_executor_config(cfg: &ExecutorConfig) -> Result<(), String> {
     // model_id is optional — null means "use the agent's ambient default
     // model" (the AGENT_DEFAULT sentinel from the picker). When set, it
     // may be "provider/model" or a bare model id; spawn parses it.
     if cfg.permission_policy.is_none() {
-        return Err(ApiError::BadRequest(
-            "executor_config.permission_policy is required".into(),
-        ));
+        return Err("executor_config.permission_policy is required".into());
     }
     Ok(())
 }
@@ -48,38 +46,30 @@ fn validate_schedule(
     kind: ScheduleKind,
     time: Option<&str>,
     dow: Option<i64>,
-) -> Result<(), ApiError> {
+) -> Result<(), String> {
     match kind {
         ScheduleKind::Manual => Ok(()),
         ScheduleKind::Hourly => match time {
             Some(mm) if mm.len() == 2 && mm.chars().all(|c| c.is_ascii_digit()) => {
                 let mm_val: u32 = mm.parse().unwrap();
                 if mm_val > 59 {
-                    Err(ApiError::BadRequest(
-                        "schedule_time for hourly must be 00-59".into(),
-                    ))
+                    Err("schedule_time for hourly must be 00-59".into())
                 } else {
                     Ok(())
                 }
             }
-            _ => Err(ApiError::BadRequest(
-                "schedule_time for hourly must be MM (00-59)".into(),
-            )),
+            _ => Err("schedule_time for hourly must be MM (00-59)".into()),
         },
         ScheduleKind::Daily | ScheduleKind::Weekdays => match time {
             Some(t) if parse_hhmm(t).is_some() => Ok(()),
-            _ => Err(ApiError::BadRequest(
-                "schedule_time for daily/weekdays must be HH:MM".into(),
-            )),
+            _ => Err("schedule_time for daily/weekdays must be HH:MM".into()),
         },
         ScheduleKind::Weekly => {
             let _hhmm = parse_hhmm(time.unwrap_or(""))
-                .ok_or_else(|| ApiError::BadRequest("schedule_time HH:MM required".into()))?;
+                .ok_or_else(|| "schedule_time HH:MM required".to_string())?;
             match dow {
                 Some(d) if (0..=6).contains(&d) => Ok(()),
-                _ => Err(ApiError::BadRequest(
-                    "schedule_dow must be 0-6 for weekly".into(),
-                )),
+                _ => Err("schedule_dow must be 0-6 for weekly".into()),
             }
         }
     }
@@ -116,12 +106,13 @@ pub async fn create_routine(
     State(deployment): State<DeploymentImpl>,
     Json(payload): Json<CreateRoutine>,
 ) -> Result<ResponseJson<ApiResponse<Routine>>, ApiError> {
-    validate_executor_config(&payload.executor_config)?;
+    validate_executor_config(&payload.executor_config).map_err(ApiError::BadRequest)?;
     validate_schedule(
         payload.schedule_kind,
         payload.schedule_time.as_deref(),
         payload.schedule_dow,
-    )?;
+    )
+    .map_err(ApiError::BadRequest)?;
     let next_run_at = compute_next_run_at(
         payload.schedule_kind,
         payload.schedule_time.as_deref(),
@@ -145,7 +136,7 @@ pub async fn update_routine(
         .ok_or_else(|| ApiError::BadRequest("Routine not found".into()))?;
 
     if let Some(cfg) = &payload.executor_config {
-        validate_executor_config(cfg)?;
+        validate_executor_config(cfg).map_err(ApiError::BadRequest)?;
     }
     let new_kind = payload.schedule_kind.unwrap_or(existing.schedule_kind);
     let new_time = payload
@@ -153,7 +144,7 @@ pub async fn update_routine(
         .as_deref()
         .or(existing.schedule_time.as_deref());
     let new_dow = payload.schedule_dow.or(existing.schedule_dow);
-    validate_schedule(new_kind, new_time, new_dow)?;
+    validate_schedule(new_kind, new_time, new_dow).map_err(ApiError::BadRequest)?;
 
     let executor_config_json = match payload.executor_config {
         Some(cfg) => Some(
