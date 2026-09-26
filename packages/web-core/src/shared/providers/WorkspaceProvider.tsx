@@ -6,7 +6,7 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
+import { useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaces } from '@/shared/hooks/useWorkspaces';
 import { workspaceSummaryKeys } from '@/shared/hooks/workspaceSummaryKeys';
@@ -78,9 +78,8 @@ function WorkspaceProviderInner({
   const appNavigation = useAppNavigation();
   const currentDestination = useCurrentAppDestination();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const search = useSearch({ strict: false });
-  const { isEmbedded } = useWorkbenchEmbed();
+  const { isEmbedded, setSessionId } = useWorkbenchEmbed();
 
   // Create mode is a URL-level state; only the route-level provider can be
   // in create mode. Child providers (per-cell) always render a real workspace.
@@ -123,17 +122,9 @@ function WorkspaceProviderInner({
   const updateSessionUrl = useCallback(
     (sessionId: string | undefined) => {
       if (!isUrlSessionEnabled) return;
-      void navigate({
-        to: '.',
-        search: (previous: Record<string, unknown>) => ({
-          ...previous,
-          sessionId,
-        }),
-        replace: true,
-        resetScroll: false,
-      });
+      setSessionId(sessionId);
     },
-    [isUrlSessionEnabled, navigate]
+    [isUrlSessionEnabled, setSessionId]
   );
 
   const selectSession = useCallback(

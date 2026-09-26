@@ -61,3 +61,26 @@ The trial also uses the existing dedicated workspace directory, loopback host,
 origin allowlist, separate temporary directory and
 `DISABLE_WORKTREE_CLEANUP=1`. Native API access still assumes a trusted local
 user; these changes do not provide a public or multi-tenant authentication layer.
+
+## Fork CI coverage
+
+The existing frontend build, type, lint, formatting, translation and legacy-path
+checks remain enabled. Frontend CI also runs `npm run test:workbench` from
+`packages/web-core` for the session-link and executor-setting restoration tests.
+The public backend retains generated-type, SQLx, formatting, Clippy, test and
+Tauri checks.
+
+The separate remote Rust backend depends on the private
+`BloopAI/vibe-kanban-private` repository. Its `backend-remote-checks` job is
+opt-in: configure the repository variable `ENABLE_PRIVATE_REMOTE_CHECKS=true`
+and the `VK_PRIVATE_DEPLOY_KEY` secret with access to that dependency to run it.
+Without that access, green fork CI does not validate remote-backend Cargo locks,
+formatting, Clippy, generated remote types or remote SQLx metadata. The remote
+web frontend still builds and is checked on every applicable frontend run.
+
+Small inherited frontend compatibility fixes keep this coverage runnable:
+mobile routines render the same matched route outlet used by desktop, and the
+remote frontend uses the shared executor-schema declaration. Existing formatting
+and translation-key failures are corrected, and SQLx CLI is pinned to the
+workspace's `0.8.6` version rather than the latest release. Workbench navigation
+labels use the existing localization system.

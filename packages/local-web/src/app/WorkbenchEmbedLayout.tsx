@@ -1,4 +1,5 @@
 import { Outlet } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import {
   GearIcon,
   MagnifyingGlassIcon,
@@ -20,22 +21,22 @@ import { useCommandBarShortcut } from '@/shared/hooks/useCommandBarShortcut';
 import { IconButton } from '@vibe/ui/components/IconButton';
 import { cn } from '@/shared/lib/utils';
 
-const mobileTabs: { id: MobileTab; label: string }[] = [
-  { id: 'workspaces', label: 'Sessions' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'changes', label: 'Changes' },
-  { id: 'logs', label: 'Terminal' },
-  { id: 'preview', label: 'Preview' },
-  { id: 'git', label: 'Git' },
-];
-
 /** Tencent owns the outer navigation and coordinator; keep the worker surface compact. */
 export function WorkbenchEmbedLayout() {
+  const { t } = useTranslation('common');
   const { isSessionsOpen, setSessionsOpen } = useWorkbenchEmbed();
   const { workspace, isCreateMode } = useWorkspaceContext();
   const appNavigation = useAppNavigation();
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useMobileActiveTab();
+  const mobileTabs: { id: MobileTab; label: string }[] = [
+    { id: 'workspaces', label: t('workbench.sessions') },
+    { id: 'chat', label: t('navbar.mobileTabs.chat') },
+    { id: 'changes', label: t('panels.changes') },
+    { id: 'logs', label: t('panels.terminal') },
+    { id: 'preview', label: t('panels.preview') },
+    { id: 'git', label: t('panels.git') },
+  ];
 
   useCommandBarShortcut(() => CommandBarDialog.show());
 
@@ -53,7 +54,7 @@ export function WorkbenchEmbedLayout() {
               'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-base text-low hover:bg-secondary hover:text-high',
               sessionsVisible && 'bg-secondary text-high'
             )}
-            aria-label="Toggle sessions"
+            aria-label={t('workbench.toggleSessions')}
             aria-expanded={sessionsVisible}
             onClick={() =>
               isMobile
@@ -62,23 +63,27 @@ export function WorkbenchEmbedLayout() {
             }
           >
             <SidebarSimpleIcon className="size-icon-base" />
-            <span className="hidden sm:inline">Sessions</span>
+            <span className="hidden sm:inline">{t('workbench.sessions')}</span>
           </button>
-          <span className="text-base font-medium text-high">Workbench</span>
-          <span className="hidden text-sm text-low sm:inline">cdesktop</span>
+          <span className="text-base font-medium text-high">
+            {t('workbench.title')}
+          </span>
+          <span className="hidden text-sm text-low sm:inline">
+            {t('workbench.product')}
+          </span>
           <span className="min-w-0 flex-1 truncate text-base text-low">
             {!isCreateMode ? workspace?.name : ''}
           </span>
           <IconButton
             icon={MagnifyingGlassIcon}
-            aria-label="Search commands"
-            title="Search commands (⌘K / Ctrl+K)"
+            aria-label={t('workbench.searchCommands')}
+            title={`${t('workbench.searchCommands')} (⌘K / Ctrl+K)`}
             onClick={() => void CommandBarDialog.show()}
           />
           <IconButton
             icon={GearIcon}
-            aria-label="Worker settings"
-            title="Worker settings"
+            aria-label={t('workbench.workerSettings')}
+            title={t('workbench.workerSettings')}
             onClick={() => void SettingsDialog.show()}
           />
           <button
@@ -91,12 +96,12 @@ export function WorkbenchEmbedLayout() {
             }}
           >
             <PlusIcon className="size-icon-sm" />
-            New session
+            {t('sidebar.newSession')}
           </button>
         </header>
         {isMobile && (
           <nav
-            aria-label="Workspace tools"
+            aria-label={t('workbench.workspaceTools')}
             className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-2 py-1"
           >
             {mobileTabs.map((tab) => (

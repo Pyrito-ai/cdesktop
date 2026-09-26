@@ -238,7 +238,8 @@
   },
   "turnNavigation": {
     "title": "내 메시지",
-    "count_other": "{{count}}턴"
+    "count_other": "{{count}}턴",
+    "count_one": "{{count}}턴"
   },
   "commandBar": {
     "noResults": "결과를 찾을 수 없습니다.",
@@ -598,10 +599,7 @@
       "prFilterLabel": "PR",
       "prFilterAll": "All",
       "prFilterHasPr": "Has PR",
-      "prFilterNoPr": "No PR",
-      "noProject": "No project",
-      "sortButtonTitle": "Sort 세션",
-      "filterButtonTitle": "Filter 세션"
+      "prFilterNoPr": "No PR"
     },
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -931,5 +929,14 @@
     "sidebar": {
       "nav": "루틴"
     }
+  },
+  "workbench": {
+    "title": "워크벤치",
+    "sessions": "세션",
+    "toggleSessions": "세션 표시 전환",
+    "searchCommands": "명령 검색",
+    "workerSettings": "에이전트 설정",
+    "workspaceTools": "작업 공간 도구",
+    "product": "cdesktop"
   }
 }

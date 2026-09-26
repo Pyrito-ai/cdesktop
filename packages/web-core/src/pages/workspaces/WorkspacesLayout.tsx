@@ -29,7 +29,6 @@ import { scrollFirstCellToBottom } from './cells/firstCellScroll';
 import { WorkspacesGuideDialog } from '@/shared/dialogs/shared/WorkspacesGuideDialog';
 import { useUserSystem } from '@/shared/hooks/useUserSystem';
 import { useAppNavigation } from '@/shared/hooks/useAppNavigation';
-import { RoutinesFirstCellSlot } from '@/shared/components/routines/RoutinesFirstCellSlot';
 
 const WORKSPACES_GUIDE_ID = 'workspaces-guide';
 
@@ -152,7 +151,7 @@ export function WorkspacesLayout() {
               )}
             >
               {isRoutinesMode ? (
-                <RoutinesFirstCellSlot />
+                <Outlet />
               ) : isCreateMode ? (
                 <CreateChatBoxContainer
                   onWorkspaceCreated={handleWorkspaceCreated}

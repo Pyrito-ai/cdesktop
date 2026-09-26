@@ -238,7 +238,8 @@
   },
   "turnNavigation": {
     "title": "あなたのメッセージ",
-    "count_other": "{{count}} ターン"
+    "count_other": "{{count}} ターン",
+    "count_one": "{{count}} ターン"
   },
   "commandBar": {
     "noResults": "結果が見つかりません。",
@@ -598,10 +599,7 @@
       "prFilterLabel": "PR",
       "prFilterAll": "All",
       "prFilterHasPr": "Has PR",
-      "prFilterNoPr": "No PR",
-      "noProject": "No project",
-      "sortButtonTitle": "Sort セッション",
-      "filterButtonTitle": "Filter セッション"
+      "prFilterNoPr": "No PR"
     },
     "sortAscending": "Ascending",
     "sortDescending": "Descending",
@@ -931,5 +929,14 @@
     "sidebar": {
       "nav": "ルーティン"
     }
+  },
+  "workbench": {
+    "title": "ワークベンチ",
+    "sessions": "セッション",
+    "toggleSessions": "セッションの表示を切り替え",
+    "searchCommands": "コマンドを検索",
+    "workerSettings": "エージェント設定",
+    "workspaceTools": "ワークスペースツール",
+    "product": "cdesktop"
   }
 }
